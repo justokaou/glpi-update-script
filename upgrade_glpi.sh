@@ -15,7 +15,7 @@ usage() {
     echo -e "${CYAN}Usage: $0 [OPTIONS]${NC}"
     echo "Available options:"
     echo "  -h, --help                 Display this help message"
-    echo "  -v, --version <version>   Specify the GLPI version to install"
+    echo "  -v, --version <version>    Required. Specifies the GLPI version to install. Must match an existing release tag on GitHub."
     exit 1
 }
 

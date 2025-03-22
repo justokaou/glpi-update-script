@@ -10,11 +10,12 @@ It includes backup of the existing GLPI instance, restoration of important direc
 - Validates the archive before extraction
 - Backs up the existing GLPI installation
 - Restores `files`, `plugins`, `config`, and `marketplace` directories
-- Automatically installs or updates:
-  - Apache and MariaDB services
-  - `nvm` and latest Node.js LTS
-  - PHP dependencies via GLPI CLI
-  - `gettext` if `msgfmt` is missing
+- Automatically performs the following actions:
+  - Restarts Apache unconditionally
+  - Verifies that MariaDB is running, and restarts it only if necessary
+  - Installs `nvm` and the latest Node.js LTS if not present
+  - Installs PHP dependencies via the GLPI CLI
+  - Installs `gettext` if `msgfmt` is missing
 - Sets proper permissions
 - Prompts to remove the previous version after update
 
@@ -38,7 +39,7 @@ cd glpi-update-script
 2. Make the script executable:
 
 ```bash
-chmod +x glpi-update.sh
+chmod +x upgrade_glpi.sh
 ```
 
 3. Ensure the required packages are installed:
@@ -51,23 +52,23 @@ apt install -y wget curl tar apache2 mariadb-server php php-cli php-mbstring php
 4. Run the script with the desired GLPI version:
 
 ```bash
-./glpi-update.sh -v <glpi-version>
+./upgrade_glpi.sh -v <glpi-version>
 ```
 
 Example:
 
 ```bash
-./glpi-update.sh -v 10.0.12
+./upgrade_glpi.sh -v 10.0.12
 ```
 
 ## Options
 
-- `-v`, `--version` <version> : Required. The GLPI version you want to install (must match a valid GitHub release tag).
+- `-v`, `--version` <version> : Required. Specifies the GLPI version to install. Must match an existing release tag on GitHub.
 - `-h`, `--help` : Display usage information.
 
 ## Notes
 
-- This script does not handle the full initial installation wizard of GLPI \(database setup, admin user creation, etc.\). It assumes that either:
+- This script does not handle the full initial installation wizard of GLPI (database setup, admin user creation, etc.). It assumes that either:
     - You are upgrading an existing GLPI installation, or
     - You have already prepared the web server and database environment manually.
 
