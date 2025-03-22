@@ -15,6 +15,7 @@ usage() {
     echo -e "${CYAN}Usage: $0 [OPTIONS]${NC}"
     echo "Available options:"
     echo "  -h, --help                 Display this help message"
+    echo "  -d, --delete-archive       Delete glpi.old after installation"
     echo "  -v, --version <version>    Required. Specifies the GLPI version to install. Must match an existing release tag on GitHub."
     exit 1
 }
@@ -23,6 +24,7 @@ usage() {
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         -h|--help) usage ;;
+        -d|--delete-archive) delete_archive=true ;;
         -v|--version) version="$2"; shift ;;
         *) echo -e "${RED}Unknown option: $1${NC}"; usage ;;
     esac
@@ -41,7 +43,7 @@ if [ -z "$version" ]; then
 else
     echo -e "${YELLOW}Downloading GLPI version ${version}...${NC}"
     glpi_tgz="/tmp/glpi-${version}.tar.gz"
-    wget -O "$glpi_tgz" "https://github.com/glpi-project/glpi/archive/refs/tags/${version}.tar.gz" || {
+    wget -q --show-progress -O "$glpi_tgz" "https://github.com/glpi-project/glpi/archive/refs/tags/${version}.tar.gz" || {
         echo -e "${RED}Error: Unable to download the archive. Check the specified version.${NC}"
         exit 1
     }
@@ -63,7 +65,7 @@ fi
 
 # Extract new version
 cd /var/www/
-tar -xvf "$glpi_tgz"
+tar -xf "$glpi_tgz"
 
 # Rename extracted folder to the expected path
 if [ -d "/var/www/glpi-${version}" ]; then
@@ -117,24 +119,25 @@ fi
 
 # Check if msgfmt is installed; install if missing
 if ! command -v msgfmt >/dev/null 2>&1; then
-    echo "msgfmt not found. Installing..."
-    apt update && apt install -y gettext
+    echo -e "${RED}msgfmt not found. Installing...${NC}"
+    apt-get update -qq
+    apt-get install -y -qq gettext
+    echo -e "${GREEN}msgfmt installed...${NC}"
 else
-    echo "msgfmt is already installed."
+    echo -e "${GREEN}msgfmt is already installed.${NC}"
 fi
 
-if ! command -v nvm >/dev/null 2>&1; then
-    echo "nvm not found. Installing..."
-    apt install build-essential libssl-dev -y
+# Set NVM_DIR and load nvm manually
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh"
+else
+    echo -e "${RED}nvm not found. Installing...${NC}"
+    apt install -y -qq build-essential libssl-dev
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
     export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    if ! command -v nvm >/dev/null 2>&1; then
-        echo -e "${RED}Error: nvm installation failed.${NC}"
-        exit 1
-    else
-        echo -e "${GREEN}nvm installed successfully.${NC}"
-    fi
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+    echo -e "${GREEN}nvm is now installed...${NC}"
 fi
 
 # Compare current Node.js version with the latest LTS available via nvm
@@ -157,13 +160,28 @@ if [ -z "$current_node" ] || [ "$(printf "%s\n%s" "$last_node_lts" "$current_nod
     nvm install --lts
     nvm use --lts
     nvm alias default lts
+    echo -e "${GREEN}Node.js $(node -v) installed successfully.${NC}"
 else
     echo -e "${GREEN}Node.js is already up to date.${NC}"
 fi
 
+# Install unzip for PHP dependencies
+echo -e "${CYAN}Check unzip for PHP dependencies...${NC}"
+if ! command -v unzip >/dev/null 2>&1; then
+    echo -e "${RED}unzip not found. Installing...${NC}"
+    apt-get update -qq
+    apt-get install -y -qq unzip
+    echo -e "${GREEN}Unzip installed successfully.${NC}"
+else
+    echo -e "${GREEN}unzip is already installed.${NC}"
+fi
+
 # Install PHP dependencies and compile translations
-php /var/www/glpi/bin/console dependencies install
-php /var/www/glpi/bin/console locales:compile
+echo -e "${YELLOW}Installing PHP dependencies and compiling translations...${NC}"
+export COMPOSER_ALLOW_SUPERUSER=1
+php /var/www/glpi/bin/console dependencies install --no-interaction > /var/log/glpi_composer.log 2>&1
+php /var/www/glpi/bin/console locales:compile --no-interaction > /var/log/glpi_locales.log 2>&1
+echo -e "${CYAN}Logs have been saved to /var/log/glpi_*.log${NC}"
 
 # Final verification
 if php /var/www/glpi/bin/console --version >/dev/null 2>&1; then
@@ -173,14 +191,19 @@ else
     exit 1
 fi
 
-# Prompt to delete backup of old installation
-echo -e "${YELLOW}Do you want to remove the previous GLPI installation (${oldglpi_path})? (y/n): ${NC}"
-read -r delete_old
-if [[ "$delete_old" =~ ^[yY]$ ]]; then
+# Handle deletion of the old GLPI installation
+if [ "$delete_archive" = true ]; then
     rm -rf "$oldglpi_path"
-    echo -e "${GREEN}Previous installation removed.${NC}"
+    echo -e "${GREEN}Previous installation removed (auto-deletion enabled).${NC}"
 else
-    echo -e "${CYAN}Previous installation retained.${NC}"
+    echo -e "${YELLOW}Do you want to remove the previous GLPI installation (${oldglpi_path})? (y/n): ${NC}"
+    read -r delete_old
+    if [[ "$delete_old" =~ ^[yYoO]$ ]]; then
+        rm -rf "$oldglpi_path"
+        echo -e "${GREEN}Previous installation removed.${NC}"
+    else
+        echo -e "${CYAN}Previous installation retained.${NC}"
+    fi
 fi
 
 echo -e "${GREEN}GLPI update completed successfully.${NC}"

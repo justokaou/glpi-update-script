@@ -63,6 +63,7 @@ Example:
 
 ## Options
 
+- `-d`, `--delete-archive` : Automatically delete the previous `glpi.old` backup directory after upgrade, without prompting.
 - `-v`, `--version` <version> : Required. Specifies the GLPI version to install. Must match an existing release tag on GitHub.
 - `-h`, `--help` : Display usage information.
 
