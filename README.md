@@ -1,4 +1,4 @@
-# GLPI Auto-Update Script
+# GLPI Auto-Upgrade Script
 
 This Bash script automates the process of downloading, extracting, updating, and configuring a specific version of **GLPI** (Gestionnaire Libre de Parc Informatique) on a Debian-based server.
 
