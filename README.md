@@ -68,6 +68,8 @@ Example:
 
 ## Notes
 
+**Important**: This script does not include a database backup. It is recommended to create a database dump or a full snapshot before running the upgrade.
+
 - This script does not handle the full initial installation wizard of GLPI (database setup, admin user creation, etc.). It assumes that either:
     - You are upgrading an existing GLPI installation, or
     - You have already prepared the web server and database environment manually.
